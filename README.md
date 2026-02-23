@@ -73,15 +73,15 @@ Do not commit tokens or config files that contain them (use `.env` and add it to
 
 1. Open Cursor Settings → MCP (or edit ~/.cursor/mcp.json directly)
 2. Add this config:
-   
+
 ```json
 {
   "mcpServers": {
     "testmo": {
       "command": "node",
-      "args": ["/absolute/path/to/testmo-mcp-server/src/index.js"],
+      "args": ["/absolute/path/to/mcp-testmo/index.js"],
       "env": {
-        "TESTMO_INSTANCE_URL": "https://your-company.testmo.net",
+        "TESTMO_INSTANCE_URL": "https://mcp.testmo.net",
         "TESTMO_TOKEN": "your-api-token"
       }
     }

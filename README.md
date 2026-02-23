@@ -25,9 +25,6 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that e
   - [Architecture](#architecture)
   - [License](#license)
 
-
----
-
 ## Features
 
 | Category | Tools |
@@ -41,15 +38,11 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that e
 | **Sessions** | List and get exploratory test sessions |
 | **Users** | Get current user, list all users |
 
----
-
 ## Requirements
 
-- **Node.js 18+**
+- **Node.js 22.12+**
 - **npm** (or pnpm/yarn) – installs `@testmo/testmo-api`
 - A Testmo account with an API token
-
----
 
 ## Setup
 
@@ -75,8 +68,6 @@ The server is configured via environment variables:
 | `TESTMO_TOKEN` | Your Testmo API token | `tm_abc123...` |
 
 Do not commit tokens or config files that contain them (use `.env` and add it to `.gitignore`).
-
----
 
 ## Using with Cursor
 
@@ -104,8 +95,6 @@ A couple of Cursor-specific tips:
 - Use the server in Agent mode (Ctrl+I / Cmd+I) — that's where Cursor actually calls MCP tools
 - Cursor will ask for approval before each tool call, so you stay in control of writes (creating runs, submitting results, etc.)
 
----
-
 ## Running manually (for testing)
 
 ```bash
@@ -113,8 +102,6 @@ export TESTMO_INSTANCE_URL="https://your-company.testmo.net"
 export TESTMO_TOKEN="your-api-token"
 npm start
 ```
-
----
 
 ## Available Tools
 
@@ -158,8 +145,6 @@ npm start
 - **`testmo_get_current_user`** — Get the current user's profile
 - **`testmo_list_users`** — List all users in the instance
 
----
-
 ## Status IDs Reference
 
 | ID | Status  |
@@ -173,8 +158,6 @@ npm start
 
 (Custom statuses may use IDs 7–25 depending on your instance.)
 
----
-
 ## Example prompts
 
 - "List all my Testmo projects"
@@ -182,8 +165,6 @@ npm start
 - "Create an automation run named 'CI Build #123' with source 'backend' in project 2"
 - "Submit a failed test result for 'Login flow' with message 'Timeout after 30s'"
 - "List repository cases in project 1 and create a folder named 'Regression'"
-
----
 
 ## Architecture
 

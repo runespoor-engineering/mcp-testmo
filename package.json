@@ -1,0 +1,60 @@
+{
+  "name": "@runespoorstack/testmo-mcp-server",
+  "version": "1.0.0",
+  "description": "MCP Server for the Testmo test management platform",
+  "main": "index.js",
+  "bin": {
+    "testmo-mcp-server": "index.js"
+  },
+  "scripts": {
+    "start": "node index.js",
+    "lint": "biome lint .",
+    "lint:fix": "biome lint --write .",
+    "format": "biome format --write .",
+    "check": "biome check .",
+    "check:fix": "biome check --write .",
+    "prepare": "husky"
+  },
+  "keywords": [
+    "mcp",
+    "testmo",
+    "testing",
+    "qa",
+    "model-context-protocol"
+  ],
+  "license": "MIT",
+  "engines": {
+    "pnpm": ">=10.0.0",
+    "node": ">=22.12.0"
+  },
+  "dependencies": {
+    "@testmo/testmo-api": "^2.4.0"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.4.4",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.2.7"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/runespoor-engineering/mcp-testmo.git"
+  },
+  "bugs": {
+    "url": "https://github.com/runespoor-engineering/mcp-testmo/issues"
+  },
+  "author": {
+    "name": "BorysShulyak",
+    "email": "borysshulyak@gmail.com",
+    "url": "https://github.com/BorysShulyak"
+  },
+  "maintainers": [
+    {
+      "name": "BorysShulyak",
+      "email": "borysshulyak@gmail.com",
+      "url": "https://github.com/BorysShulyak"
+    }
+  ],
+  "lint-staged": {
+    "*.{js,ts,json,jsonc}": "biome check --write"
+  }
+}

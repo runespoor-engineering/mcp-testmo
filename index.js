@@ -247,7 +247,8 @@ const TOOLS = [
   },
   {
     name: "testmo_update_case",
-    description: "Update one or more repository test cases",
+    description:
+      "Update one or more repository test cases. Supports custom fields (custom_preconditions, custom_steps, custom_expected, etc.)",
     inputSchema: {
       type: "object",
       properties: {
@@ -258,8 +259,12 @@ const TOOLS = [
         state_id: { type: "number" },
         status_id: { type: "number" },
         estimate: { type: "number" },
+        custom_preconditions: { type: "string", description: "Preconditions (HTML)" },
+        custom_steps: { type: "array", description: "Steps array with step/expected objects" },
+        custom_expected: { type: "string", description: "Expected result (HTML)" },
       },
       required: ["project_id", "ids"],
+      additionalProperties: true,
     },
   },
   {
@@ -368,6 +373,22 @@ const TOOLS = [
         ids: { type: "array", items: { type: "number" }, description: "Folder IDs to delete" },
       },
       required: ["project_id", "ids"],
+    },
+  },
+
+  // ─ Fields ─────────────────────────────────────────────────────────────────
+  {
+    name: "testmo_list_fields",
+    description: "List custom fields and their options for a project",
+    inputSchema: {
+      type: "object",
+      properties: {
+        project_id: { type: "number", description: "The project ID" },
+        entity: { type: "string", description: "Filter by entity type (e.g. 'cases', 'runs')" },
+        page: { type: "number" },
+        per_page: { type: "number" },
+      },
+      required: ["project_id"],
     },
   },
 
@@ -480,6 +501,7 @@ function createTestmoApis(instanceUrl, token) {
     folders: new testmo.FoldersApi(client),
     groups: new testmo.GroupsApi(client),
     roles: new testmo.RolesApi(client),
+    fields: new testmo.FieldsApi(client),
   };
 }
 
@@ -650,23 +672,26 @@ async function handleTool(apis, name, args) {
       const casesPayload = Array.isArray(a.cases)
         ? a.cases
         : a.name
-          ? [{ name: a.name, folder_id: a.folder_id }]
+          ? [
+              {
+                name: a.name,
+                folder_id: a.folder_id,
+                template_id: a.template_id,
+                state_id: a.state_id,
+                estimate: a.estimate,
+              },
+            ]
           : [];
       if (casesPayload.length === 0)
         throw new Error("Provide either 'cases' array or 'name' for a single case");
-      const createCase = testmo.CreateRepositoryCase.constructFromObject({ cases: casesPayload });
-      return apis.repositoryCases.createCases(a.project_id, createCase);
+      // Bypass SDK constructFromObject to preserve custom fields (custom_*)
+      return apis.repositoryCases.createCases(a.project_id, { cases: casesPayload });
     }
     case "testmo_update_case": {
-      const updateCase = testmo.UpdateRepositoryCase.constructFromObject({
-        ids: a.ids,
-        name: a.name,
-        folder_id: a.folder_id,
-        state_id: a.state_id,
-        status_id: a.status_id,
-        estimate: a.estimate,
-      });
-      return apis.repositoryCases.updateCases(a.project_id, updateCase);
+      // Bypass SDK constructFromObject to preserve custom fields (custom_*)
+      const payload = { ...a };
+      delete payload.project_id;
+      return apis.repositoryCases.updateCases(a.project_id, payload);
     }
     case "testmo_delete_case": {
       const deleteCase = testmo.DeleteRepositoryCases.constructFromObject({ ids: a.ids });
@@ -725,6 +750,14 @@ async function handleTool(apis, name, args) {
       await apis.folders.deleteFolders(a.project_id, deleteFolders);
       return { deleted: a.ids.length };
     }
+
+    // Fields
+    case "testmo_list_fields":
+      return apis.fields.getFieldPage(a.project_id, {
+        page: a.page,
+        perPage: a.per_page,
+        entity: a.entity,
+      });
 
     // Sessions
     case "testmo_list_sessions":
@@ -819,8 +852,13 @@ async function handleRequest(req) {
             content: [{ type: "text", text: JSON.stringify(result, null, 2) }],
           });
         } catch (err) {
+          const msg =
+            err.message ||
+            (err.body && JSON.stringify(err.body)) ||
+            (err.status && `HTTP ${err.status}: ${err.statusText}`) ||
+            JSON.stringify(err);
           sendResponse(id, {
-            content: [{ type: "text", text: `Error: ${err.message}` }],
+            content: [{ type: "text", text: `Error: ${msg}` }],
             isError: true,
           });
         }

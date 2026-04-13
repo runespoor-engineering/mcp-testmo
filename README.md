@@ -18,7 +18,10 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that e
     - [Automation Runs](#automation-runs)
     - [Test Cases (repository)](#test-cases-repository)
     - [Folders (repository)](#folders-repository)
+    - [Fields](#fields)
     - [Sessions](#sessions)
+    - [Groups](#groups)
+    - [Roles](#roles)
     - [Users](#users)
   - [Status IDs Reference](#status-ids-reference)
   - [Example prompts](#example-prompts)
@@ -32,11 +35,14 @@ A [Model Context Protocol (MCP)](https://modelcontextprotocol.io/) server that e
 | **Projects** | List projects, get project details |
 | **Milestones** | List milestones, get milestone details |
 | **Test Runs** | List runs, get run details, list run results |
-| **Automation Runs** | List, get, create automation runs; submit results; mark complete |
-| **Test Cases** | List, create, update, delete repository cases |
-| **Folders** | List, create, update, delete repository folders |
+| **Automation Runs** | Get automation sources; list, get, create automation runs; submit results; mark complete |
+| **Test Cases** | List, get, create, update (with custom fields), delete repository cases |
+| **Folders** | List, get, create, update, delete repository folders |
+| **Fields** | List custom fields and options for a project |
 | **Sessions** | List and get exploratory test sessions |
-| **Users** | Get current user, list all users |
+| **Groups** | Get group details |
+| **Roles** | Get role details |
+| **Users** | Get current user, list all users, get user by ID |
 
 ## Requirements
 
@@ -119,6 +125,7 @@ npm start
 - **`testmo_list_run_results`** — Get results for a run (filters: status, user, date range, expands)
 
 ### Automation Runs
+- **`testmo_get_automation_source`** — Get a single automation source by ID
 - **`testmo_list_automation_runs`** — List automation runs (optional source filter)
 - **`testmo_get_automation_run`** — Get an automation run by ID
 - **`testmo_create_automation_run`** — Create a new automation run (name, source, optional milestone)
@@ -127,23 +134,35 @@ npm start
 
 ### Test Cases (repository)
 - **`testmo_list_cases`** — List cases (filter by folder, template, date)
-- **`testmo_create_case`** — Create one or more cases (`cases` array or single `name` + optional `folder_id`)
-- **`testmo_update_case`** — Update cases by `project_id` + `ids` and optional fields
+- **`testmo_get_case`** — Get a single case by ID (with optional expands: history, comments, tags, etc.)
+- **`testmo_create_case`** — Create one or more cases (`cases` array or single `name` + optional `folder_id`, `template_id`, `state_id`, `estimate`)
+- **`testmo_update_case`** — Update cases by `project_id` + `ids`; supports custom fields (`custom_preconditions`, `custom_steps`, `custom_expected`, etc.)
 - **`testmo_delete_case`** — Delete cases by `project_id` + `ids`
 
 ### Folders (repository)
 - **`testmo_list_folders`** — List folders in a project
+- **`testmo_get_folder`** — Get a single folder by ID
 - **`testmo_create_folder`** — Create one or more folders (`folders` array or single `name` + optional `parent_id`)
 - **`testmo_update_folder`** — Update folders by `project_id` + `ids`
 - **`testmo_delete_folder`** — Delete folders by `project_id` + `ids`
+
+### Fields
+- **`testmo_list_fields`** — List custom fields and their options for a project (optional entity filter: `cases`, `runs`, etc.)
 
 ### Sessions
 - **`testmo_list_sessions`** — List exploratory sessions for a project
 - **`testmo_get_session`** — Get session details
 
+### Groups
+- **`testmo_get_group`** — Get a single group by ID
+
+### Roles
+- **`testmo_get_role`** — Get a single role by ID
+
 ### Users
 - **`testmo_get_current_user`** — Get the current user's profile
 - **`testmo_list_users`** — List all users in the instance
+- **`testmo_get_user`** — Get a single user by ID
 
 ## Status IDs Reference
 

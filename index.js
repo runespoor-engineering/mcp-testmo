@@ -239,10 +239,19 @@ const TOOLS = [
               estimate: { type: "number" },
             },
             required: ["name"],
+            additionalProperties: true,
           },
         },
+        issues: {
+          type: "array",
+          description:
+            "Linked issues for the single-case path. Array of issue IDs (integers) or objects " +
+            '{display_id, integration_id, connection_project_id} — e.g. [{"display_id":"IM-31082","integration_id":1}].',
+        },
+        tags: { type: "array", description: "Tags for the single-case path" },
       },
       required: ["project_id"],
+      additionalProperties: true,
     },
   },
   {
@@ -262,6 +271,15 @@ const TOOLS = [
         custom_preconditions: { type: "string", description: "Preconditions (HTML)" },
         custom_steps: { type: "array", description: "Steps array with step/expected objects" },
         custom_expected: { type: "string", description: "Expected result (HTML)" },
+        issues: {
+          type: "array",
+          description:
+            "Linked issues (native tracker integration). Array of issue IDs (integers) or objects " +
+            "{display_id, integration_id, connection_project_id} — e.g. " +
+            '[{"display_id":"IM-31082","integration_id":1}]. Existing issues are matched, new ones created. ' +
+            "Replaces the case's current issue list, so include the existing links you want to keep.",
+        },
+        tags: { type: "array", description: "Tags to set on the case" },
       },
       required: ["project_id", "ids"],
       additionalProperties: true,
@@ -488,6 +506,7 @@ function createTestmoApis(instanceUrl, token) {
   client.authentications.bearerAuth.accessToken = token;
 
   return {
+    client,
     projects: new testmo.ProjectsApi(client),
     milestones: new testmo.MilestonesApi(client),
     runs: new testmo.RunsApi(client),
@@ -527,6 +546,41 @@ function slugForKey(name) {
     .replace(/_+/g, "_")
     .slice(0, 64);
   return s || `test_${Math.random().toString(36).slice(2, 10)}`;
+}
+
+// The MCP client serializes schema-untyped fields as strings (only the fields
+// explicitly typed in a tool's inputSchema keep their JSON type). Testmo's custom
+// dropdown/multiselect fields therefore arrive as "2" or "[103]" and get rejected
+// ("must be a number" / "not of type array"). Reverse that for every custom_* key.
+function coerceCustomValue(value) {
+  if (typeof value !== "string") return value;
+  const s = value.trim();
+  if (/^-?\d+$/.test(s)) return Number(s);
+  if (s === "true" || s === "false") return s === "true";
+  if (s.startsWith("[") || s.startsWith("{")) {
+    try {
+      return JSON.parse(s);
+    } catch {
+      return value;
+    }
+  }
+  return value; // HTML text fields (preconditions/expected) start with "<" — left intact
+}
+
+// Non-custom fields that are arrays on the wire. They are declared in the tool
+// inputSchemas so a well-behaved client keeps their JSON type, but coerce them
+// anyway: a client that stringifies them would otherwise trip Testmo's
+// "field is not of type array" validation with no useful hint.
+const ARRAY_FIELDS = new Set(["issues", "tags"]);
+
+function coerceCustomFields(obj) {
+  if (!obj || typeof obj !== "object") return obj;
+  for (const key of Object.keys(obj)) {
+    if (key.startsWith("custom_") || ARRAY_FIELDS.has(key)) {
+      obj[key] = coerceCustomValue(obj[key]);
+    }
+  }
+  return obj;
 }
 
 // ── Tool Handlers ─────────────────────────────────────────────────────────────
@@ -642,23 +696,24 @@ async function handleTool(apis, name, args) {
     // Repository cases
     case "testmo_get_case": {
       const caseId = a.case_id;
+      // Raw HTTP call to bypass SDK model deserialization (which strips custom fields)
+      const baseUrl = apis.client.basePath;
+      const token = apis.client.authentications.bearerAuth.accessToken;
       let page = 1;
-      const perPage = 100;
       for (;;) {
-        const pageData = await apis.repositoryCases.getCasesPage(a.project_id, {
-          page,
-          perPage,
-          sort: "repository_cases:id",
-          order: "asc",
-          expands: a.expands,
+        const url = `${baseUrl}/api/v1/projects/${a.project_id}/cases?page=${page}&per_page=25&sort=repository_cases%3Aid&order=asc`;
+        const resp = await fetch(url, {
+          headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
         });
+        if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${await resp.text()}`);
+        const pageData = await resp.json();
         const list = pageData?.result ?? [];
         const found = list.find((c) => c.id === caseId || c.key === caseId);
         if (found) return found;
-        if (list.length < perPage || page >= (pageData?.last_page ?? page)) break;
+        if (list.length < 25 || page >= (pageData?.last_page ?? page)) break;
         page += 1;
       }
-      throw new Error(`Case with id ${caseId} not found in project ${a.project_id}`);
+      throw new Error(`Case ${caseId} not found in project ${a.project_id}`);
     }
     case "testmo_list_cases":
       return apis.repositoryCases.getCasesPage(a.project_id, {
@@ -669,28 +724,20 @@ async function handleTool(apis, name, args) {
         perPage: a.per_page,
       });
     case "testmo_create_case": {
-      const casesPayload = Array.isArray(a.cases)
-        ? a.cases
-        : a.name
-          ? [
-              {
-                name: a.name,
-                folder_id: a.folder_id,
-                template_id: a.template_id,
-                state_id: a.state_id,
-                estimate: a.estimate,
-              },
-            ]
-          : [];
+      // Keep any custom_* keys on the single-case path (spread, don't cherry-pick).
+      const { project_id, cases, ...single } = a;
+      const casesPayload = Array.isArray(cases) ? cases : single.name ? [single] : [];
       if (casesPayload.length === 0)
         throw new Error("Provide either 'cases' array or 'name' for a single case");
       // Bypass SDK constructFromObject to preserve custom fields (custom_*)
+      casesPayload.forEach(coerceCustomFields);
       return apis.repositoryCases.createCases(a.project_id, { cases: casesPayload });
     }
     case "testmo_update_case": {
       // Bypass SDK constructFromObject to preserve custom fields (custom_*)
       const payload = { ...a };
       delete payload.project_id;
+      coerceCustomFields(payload);
       return apis.repositoryCases.updateCases(a.project_id, payload);
     }
     case "testmo_delete_case": {

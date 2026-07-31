@@ -701,7 +701,10 @@ async function handleTool(apis, name, args) {
       const token = apis.client.authentications.bearerAuth.accessToken;
       let page = 1;
       for (;;) {
-        const url = `${baseUrl}/api/v1/projects/${a.project_id}/cases?page=${page}&per_page=25&sort=repository_cases%3Aid&order=asc`;
+        // `expands` must be forwarded: `issues` (the native tracker links) is not in the
+        // default payload, and it is the only way to read a case's Jira links.
+        const expands = a.expands ? `&expands=${encodeURIComponent(a.expands)}` : "";
+        const url = `${baseUrl}/api/v1/projects/${a.project_id}/cases?page=${page}&per_page=25&sort=repository_cases%3Aid&order=asc${expands}`;
         const resp = await fetch(url, {
           headers: { Authorization: `Bearer ${token}`, Accept: "application/json" },
         });
